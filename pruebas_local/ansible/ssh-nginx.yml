@@ -1,0 +1,13 @@
+- hosts: debian_containers
+  become: yes  # Ejecutar tareas con privilegios de superusuario (sudo)
+  tasks:
+    - name: Ensure Nginx is installed
+      apt:
+        name: nginx
+        state: present
+
+    - name: Ensure Nginx is running and enabled
+      service:
+        name: nginx
+        state: started  # Asegura que Nginx esté en ejecución
+        enabled: yes    # Habilita Nginx para que se inicie automáticamente al arrancar el sistema
