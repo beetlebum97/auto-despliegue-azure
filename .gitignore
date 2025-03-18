@@ -1,2 +1,17 @@
+# Excluir claves
 .env
+
+# Excluir notas internas
 mejoras.txt
+
+# Excluir archivos de estado
+*.tfstate
+*.tfstate.backup
+
+# Excluir archivos de variables sensibles
+terraform.tfvars
+
+# Excluir directorios .terraform
+.terraform/
+
+*.terraform.lock.hcl
