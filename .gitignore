@@ -1,4 +1,4 @@
-# Excluir claves
+# Excluir claves pruebas-local
 .env
 
 # Excluir notas internas
@@ -15,3 +15,6 @@ terraform.tfvars
 .terraform/
 
 *.terraform.lock.hcl
+
+# Excluir archivo Ansible Vault 
+secrets.yml
