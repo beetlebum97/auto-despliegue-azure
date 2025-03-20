@@ -1,0 +1,20 @@
+# subir-imagen-acr.yml
+- name: Subir la imagen de Nginx al ACR
+  hosts: localhost
+  vars_files:
+    - /home/beetlebum/azure/ansible/secrets.yml  # Carga las variables sensibles desde un archivo encriptado con Ansible Vault
+  vars:
+    acr_username: "dvrAcrRegistry"
+    # acr_password: "{{ acr_password }}"  # Asegúrate de definir esta variable correctamente
+  tasks:
+    - name: Etiquetar la imagen con la versión casopractico2
+      shell: |
+        podman tag nginx-dvr dvrAcrRegistry.azurecr.io/nginx/nginx-dvr:casopractico2
+
+    - name: Autenticarse en el ACR
+      shell: |
+        podman login dvrAcrRegistry.azurecr.io --username {{ acr_username }} --password {{ acr_password }}
+
+    - name: Subir la imagen al ACR con la etiqueta casopractico2
+      shell: |
+        podman push dvrAcrRegistry.azurecr.io/nginx/nginx-dvr:casopractico2

@@ -1,0 +1,39 @@
+# crear-imagen.yml
+- name: Construir la imagen de Nginx en localhost
+  hosts: localhost
+  tasks:
+    - name: Crear el directorio artifacts si no existe
+      file:
+        path: ../artifacts
+        state: directory
+
+    - name: Copiar el Dockerfile a localhost
+      copy:
+        content: |
+          # Dockerfile
+          FROM docker.io/library/nginx:latest
+          COPY index.html /usr/share/nginx/html/index.html
+        dest: ../artifacts/Dockerfile
+
+    - name: Copiar el archivo index.html a localhost
+      copy:
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>CURSO DEVOPS & CLOUD. UNIR</title>
+          </head>
+          <body>
+              <h1>Práctica CP2</h1>
+              <p>Este es un servidor Nginx en un contenedor.</p>
+          </body>
+          </html>
+        dest: ../artifacts/index.html
+
+    - name: Construir la imagen de Nginx con Podman
+      shell: |
+        podman build -t nginx-dvr ../artifacts
+
+    - name: Guardar la imagen nginx-dvr en un archivo tar (portable)
+      shell: |
+        podman save -o ../artifacts/nginx-dvr.tar nginx-dvr:latest
