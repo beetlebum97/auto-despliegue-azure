@@ -1,0 +1,41 @@
+---
+- name: Verificar despliegue de MySQL en AKS
+  hosts: localhost
+  tasks:
+    - name: Verificar los pods
+      command: kubectl get pods
+      register: pod_status
+      failed_when: "'Running' not in pod_status.stdout"
+
+    - name: Mostrar estado de los pods
+      debug:
+        var: pod_status.stdout
+
+    - name: Verificar los servicios
+      command: kubectl get services
+      register: service_status
+
+    - name: Mostrar estado de los servicios
+      debug:
+        var: service_status.stdout
+
+    - name: Obtener la IP externa del servicio MySQL
+      shell: |
+        kubectl get service mysql-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+      register: mysql_ip
+      ignore_errors: yes  # Ignora errores si el servicio no tiene IP aún
+
+    - name: Mostrar la IP externa del servicio MySQL
+      debug:
+        var: mysql_ip.stdout
+
+    - name: Probar conexión a MySQL (si hay IP externa)
+      shell: >
+        mysql -h {{ mysql_ip.stdout }} -P 3306 -u root -ppassword -e "SHOW DATABASES;"
+      when: mysql_ip.stdout != ""
+      register: mysql_connection
+      ignore_errors: yes  # Ignora errores si la conexión falla
+
+    - name: Mostrar resultado de la conexión a MySQL
+      debug:
+        var: mysql_connection.stdout
