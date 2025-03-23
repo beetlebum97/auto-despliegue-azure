@@ -1,0 +1,11 @@
+# Dockerfile.mysql
+FROM docker.io/library/mysql:8.0
+
+# Variables de entorno para MySQL
+ENV MYSQL_ROOT_PASSWORD=manager
+ENV MYSQL_DATABASE=prueba
+ENV MYSQL_USER=beetlebum
+ENV MYSQL_PASSWORD=1997
+
+# Puerto expuesto
+EXPOSE 3306

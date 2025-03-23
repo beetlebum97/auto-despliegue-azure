@@ -1,0 +1,47 @@
+- name: Desplegar imagen MySQL en ACR
+  hosts: localhost
+  vars_files:
+    - /home/beetlebum/cp2/ansible/secrets.yml  # Carga las variables sensibles desde un archivo encriptado con Ansible Vault
+  vars:
+    acr_username: "dvrAcrRegistry"
+    mysql_root_password: "{{ mysql_root_password }}"  # Definido en secrets.yml
+    mysql_database: "{{ mysql_database }}"          # Definido en secrets.yml
+    mysql_user: "{{ mysql_user }}"                  # Definido en secrets.yml
+    mysql_password: "{{ mysql_password }}"          # Definido en secrets.yml
+  tasks:
+    - name: Autenticarse en el ACR
+      command: >
+        podman login dvrAcrRegistry.azurecr.io
+        --username {{ acr_username }}
+        --password {{ acr_password }}
+      args:
+        creates: /root/.docker/config.json  # Evita repetir el login si ya está autenticado
+
+    - name: Crear Dockerfile
+      copy:
+        content: |
+          # Dockerfile.mysql
+          FROM docker.io/library/mysql:8.0
+
+          # Variables de entorno para MySQL
+          ENV MYSQL_ROOT_PASSWORD={{ mysql_root_password }}
+          ENV MYSQL_DATABASE={{ mysql_database }}
+          ENV MYSQL_USER={{ mysql_user }}
+          ENV MYSQL_PASSWORD={{ mysql_password }}
+
+          # Puerto expuesto
+          EXPOSE 3306
+        dest: ./Dockerfile.mysql
+
+    - name: Construir la imagen de MySQL
+      command: >
+        podman build -t mysql:casopractico2 -f Dockerfile.mysql .
+
+    - name: Etiquetar la imagen
+      command: >
+        podman tag mysql:casopractico2
+        dvrAcrRegistry.azurecr.io/mysql/casopractico2:casopractico2
+
+    - name: Subir la imagen al ACR
+      command: >
+        podman push dvrAcrRegistry.azurecr.io/mysql/casopractico2:casopractico2

@@ -1,0 +1,9 @@
+---
+- name: Conectar a AKS y desplegar MySQL (Pruebas)
+  hosts: localhost
+  tasks:
+    - name: Obtener credenciales de AKS (kubectl)
+      command: az aks get-credentials --resource-group DVR --name dvrAksCluster --overwrite-existing
+
+    - name: Aplicar el manifiesto MySQL en el cluster
+      command: kubectl apply -f mysql-deploy.yaml
