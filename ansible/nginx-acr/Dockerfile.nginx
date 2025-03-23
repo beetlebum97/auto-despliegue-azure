@@ -1,0 +1,6 @@
+# Dockerfile
+FROM docker.io/library/nginx:latest
+COPY ./nginx-config/conf.d /etc/nginx/conf.d/
+COPY ./nginx-config/html /usr/share/nginx/html/
+COPY ./nginx-config/auth /etc/nginx/auth/
+COPY ./nginx-config/certs /etc/nginx/certs/

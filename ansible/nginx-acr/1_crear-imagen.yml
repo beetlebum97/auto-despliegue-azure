@@ -1,0 +1,81 @@
+# crear-imagen-mejorada.yml
+- name: Construir la imagen de Nginx mejorada
+  hosts: localhost
+  tasks:
+    - name: Crear directorios para los archivos de configuración
+      file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - ./nginx-config
+        - ./nginx-config/html
+        - ./nginx-config/certs
+        - ./nginx-config/auth
+        - ./nginx-config/conf.d
+
+    - name: Copiar el Dockerfile a localhost
+      copy:
+        content: |
+          # Dockerfile
+          FROM docker.io/library/nginx:latest
+          COPY ./nginx-config/conf.d /etc/nginx/conf.d/
+          COPY ./nginx-config/html /usr/share/nginx/html/
+          COPY ./nginx-config/auth /etc/nginx/auth/
+          COPY ./nginx-config/certs /etc/nginx/certs/
+        dest: ./Dockerfile.nginx
+
+    - name: Copiar el archivo index.html a localhost
+      copy:
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>DEVOPS & CLOUD -- UNIR</title>
+          </head>
+          <body>
+              <h1>Práctica CP2 AZURE - David Vázquez</h1>
+              <p>Este es un servidor Nginx seguro con autenticación básica.</p>
+          </body>
+          </html>
+        dest: ./nginx-config/html/index.html
+
+    - name: Generar un certificado X.509 autofirmado
+      command: >
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048
+        -keyout ./nginx-config/certs/nginx-selfsigned.key
+        -out ./nginx-config/certs/nginx-selfsigned.crt
+        -subj "/CN=localhost"
+      args:
+        creates: ./nginx-config/certs/nginx-selfsigned.crt
+
+    - name: Crear archivo de contraseñas para autenticación básica (htpasswd)
+      command: >
+        htpasswd -cb ./nginx-config/auth/.htpasswd beetlebum 1997
+      args:
+        creates: ./nginx-config/auth/.htpasswd
+
+    - name: Configurar Nginx para usar HTTPS y autenticación básica
+      copy:
+        content: |
+          server {
+              listen 443 ssl;
+              server_name localhost;
+
+              ssl_certificate /etc/nginx/certs/nginx-selfsigned.crt;
+              ssl_certificate_key /etc/nginx/certs/nginx-selfsigned.key;
+
+              location / {
+                  auth_basic "Acceso restringido";
+                  auth_basic_user_file /etc/nginx/auth/.htpasswd;
+                  root /usr/share/nginx/html;
+                  index index.html;
+              }
+          }
+        dest: ./nginx-config/conf.d/default.conf
+
+    - name: Construir la imagen de Nginx con Podman
+      containers.podman.podman_image:
+        path: .
+        name: nginx-dvr:casopractico2
+        build:
+          file: Dockerfile.nginx
