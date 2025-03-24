@@ -1,6 +1,6 @@
 # auto-despliegue-azure
 
-Automatización de despliegues en entornos Cloud. EN PREPARACIÓN.
+Automatización de despliegues en entornos Cloud. 
 
 ## Objetivos
 - Crear infraestructura de forma automatizada en un proveedor de Cloud pública.
