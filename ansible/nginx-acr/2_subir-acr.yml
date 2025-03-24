@@ -1,18 +1,35 @@
-# subir-imagen-acr.yml
+---
 - name: Subir la imagen de Nginx al ACR
   hosts: localhost
   vars_files:
-    - /home/beetlebum/cp2/ansible/secrets.yml  # Carga las variables sensibles
+    - /home/beetlebum/cp2/ansible/secrets.yml  # Carga las variables sensibles encriptadas con ansible-vault
   vars:
     acr_username: "dvrAcrRegistry"
     acr_registry: "dvrAcrRegistry.azurecr.io"
     image_name: "nginx-dvr"
     image_tag: "casopractico2"
   tasks:
-    - name: Autenticarse en el ACR
+    - name: Autenticarse en el ACR con podman
       shell: |
         podman login {{ acr_registry }} --username {{ acr_username }} --password {{ acr_password }}
+      register: login_result
+      failed_when: login_result.failed
+      no_log: true  # Evitar mostrar la contraseña en los logs
 
-    - name: Subir la imagen al ACR con la etiqueta casopractico2
+    - name: Subir la imagen al ACR
       shell: |
-        podman push localhost/{{ image_name }}:{{ image_tag }} {{ acr_registry }}/nginx/{{ image_name }}:{{ image_tag }}
+        podman tag {{ image_name }}:{{ image_tag }} {{ acr_registry }}/nginx/{{ image_name }}:{{ image_tag }}
+        podman push {{ acr_registry }}/nginx/{{ image_name }}:{{ image_tag }}
+      register: push_result
+      failed_when: push_result.failed
+      no_log: true  # Evitar mostrar detalles sensibles en los logs
+
+    - name: Verificar el resultado de la autenticación
+      debug:
+        var: login_result
+      when: login_result is defined
+
+    - name: Verificar el resultado del push
+      debug:
+        var: push_result
+      when: push_result is defined

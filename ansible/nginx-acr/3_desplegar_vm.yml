@@ -1,12 +1,14 @@
 # desplegar-nginx-vm.yml
 - name: Configurar la VM Linux para ejecutar Nginx desde el ACR
-  hosts: webserver
+  hosts: vm_azure
   become: yes
   vars_files:
     - /home/beetlebum/cp2/ansible/secrets.yml  # Carga las variables sensibles desde un archivo encriptado con Ansible Vault
   vars:
     acr_username: "dvrAcrRegistry"
-    #acr_password: "{{ acr_password }}"  # Definir esta variable en el inventario o en la línea de comandos
+    acr_registry: "dvrAcrRegistry.azurecr.io"
+    image_name: "nginx-dvr"
+    image_tag: "casopractico2"
   tasks:
     - name: Instalar Podman
       apt:
@@ -14,14 +16,15 @@
         state: present
         update_cache: yes
 
-    - name: Autenticarse en el ACR
+    - name: Autenticarse en el ACR con podman
       shell: |
-        podman login dvrAcrRegistry.azurecr.io --username {{ acr_username }} --password {{ acr_password }}
+        podman login {{ acr_registry }} --username {{ acr_username }} --password {{ acr_password }}
+      no_log: true  # Evitar mostrar la contraseña en los logs
 
     - name: Descargar la imagen de Nginx desde el ACR
       shell: |
-        podman pull dvrAcrRegistry.azurecr.io/nginx/nginx-dvr:casopractico2
+        podman pull {{ acr_registry }}/nginx/{{ image_name }}:{{ image_tag }}
 
     - name: Ejecutar el contenedor de Nginx
       shell: |
-        podman run -d --name nginx -p 80:80 -p 443:443 dvrAcrRegistry.azurecr.io/nginx/nginx-dvr:casopractico2
+        podman run -d --name nginx -p 80:80 -p 443:443 {{ acr_registry }}/nginx/{{ image_name }}:{{ image_tag }}

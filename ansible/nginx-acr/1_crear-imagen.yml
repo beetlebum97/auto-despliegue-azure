@@ -1,9 +1,11 @@
-# crear-imagen-mejorada.yml
 - name: Construir la imagen de Nginx mejorada
   hosts: localhost
+  vars_files:
+    - /home/beetlebum/cp2/ansible/secrets.yml  # Carga las variables sensibles
+
   tasks:
-    - name: Crear directorios para los archivos de configuración
-      file:
+    - name: Crear directorios para la configuración de Nginx
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
       loop:
@@ -13,8 +15,8 @@
         - ./nginx-config/auth
         - ./nginx-config/conf.d
 
-    - name: Copiar el Dockerfile a localhost
-      copy:
+    - name: Copiar el Dockerfile
+      ansible.builtin.copy:
         content: |
           # Dockerfile
           FROM docker.io/library/nginx:latest
@@ -24,38 +26,42 @@
           COPY ./nginx-config/certs /etc/nginx/certs/
         dest: ./Dockerfile.nginx
 
-    - name: Copiar el archivo index.html a localhost
-      copy:
+    - name: Crear archivo index.html con UTF-8
+      ansible.builtin.copy:
         content: |
           <!DOCTYPE html>
-          <html>
+          <html lang="es">
           <head>
-              <title>DEVOPS & CLOUD -- UNIR</title>
+              <meta charset="UTF-8">
+              <title>UNIR</title>
           </head>
           <body>
-              <h1>Práctica CP2 AZURE - David Vázquez</h1>
+              <h1>DEVOPS & CLOUD | CP2 AZURE - David Vázquez</h1>
               <p>Este es un servidor Nginx seguro con autenticación básica.</p>
           </body>
           </html>
         dest: ./nginx-config/html/index.html
 
-    - name: Generar un certificado X.509 autofirmado
-      command: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048
-        -keyout ./nginx-config/certs/nginx-selfsigned.key
-        -out ./nginx-config/certs/nginx-selfsigned.crt
-        -subj "/CN=localhost"
-      args:
-        creates: ./nginx-config/certs/nginx-selfsigned.crt
+    - name: Generar clave privada para el certificado
+      community.crypto.openssl_privatekey:
+        path: ./nginx-config/certs/nginx-selfsigned.key
+        size: 2048
 
-    - name: Crear archivo de contraseñas para autenticación básica (htpasswd)
-      command: >
-        htpasswd -cb ./nginx-config/auth/.htpasswd beetlebum 1997
-      args:
-        creates: ./nginx-config/auth/.htpasswd
+    - name: Generar certificado autofirmado
+      community.crypto.x509_certificate:
+        path: ./nginx-config/certs/nginx-selfsigned.crt
+        privatekey_path: ./nginx-config/certs/nginx-selfsigned.key
+        provider: selfsigned
 
-    - name: Configurar Nginx para usar HTTPS y autenticación básica
-      copy:
+    - name: Crear archivo de contraseñas para autenticación básica
+      community.general.htpasswd:
+        path: ./nginx-config/auth/.htpasswd
+        name: "{{ usuario_nginx }}"
+        password: "{{ pass_nginx }}"
+        crypt_scheme: bcrypt
+
+    - name: Copiar configuración de Nginx
+      ansible.builtin.copy:
         content: |
           server {
               listen 443 ssl;
