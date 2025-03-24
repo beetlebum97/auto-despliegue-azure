@@ -5,20 +5,19 @@
   vars:
     acr_username: "dvrAcrRegistry"
     mysql_root_password: "{{ mysql_root_password }}"  # Definido en secrets.yml
-    mysql_database: "{{ mysql_database }}"          # Definido en secrets.yml
-    mysql_user: "{{ mysql_user }}"                  # Definido en secrets.yml
-    mysql_password: "{{ mysql_password }}"          # Definido en secrets.yml
+    mysql_database: "{{ mysql_database }}"            # Definido en secrets.yml
+    mysql_user: "{{ mysql_user }}"                    # Definido en secrets.yml
+    mysql_password: "{{ mysql_password }}"            # Definido en secrets.yml
   tasks:
-    - name: Autenticarse en el ACR
-      command: >
-        podman login dvrAcrRegistry.azurecr.io
-        --username {{ acr_username }}
-        --password {{ acr_password }}
+    - name: Autenticarse en el ACR con podman
+      shell: >
+        podman login dvrAcrRegistry.azurecr.io --username {{ acr_username }} --password {{ acr_password }}
       args:
         creates: /root/.docker/config.json  # Evita repetir el login si ya está autenticado
+      no_log: true  # Evitar mostrar la contraseña en los logs
 
-    - name: Crear Dockerfile
-      copy:
+    - name: Crear Dockerfile MySQL
+      ansible.builtin.copy:
         content: |
           # Dockerfile.mysql
           FROM docker.io/library/mysql:8.0
@@ -32,16 +31,25 @@
           # Puerto expuesto
           EXPOSE 3306
         dest: ./Dockerfile.mysql
+        mode: '0644'
 
     - name: Construir la imagen de MySQL
-      command: >
-        podman build -t mysql:casopractico2 -f Dockerfile.mysql .
+      ansible.builtin.command:
+        cmd: "podman build -t mysql:casopractico2 -f Dockerfile.mysql ."
+      args:
+        chdir: /home/beetlebum/cp2/ansible/mysql-aks
+      register: build_result
+      failed_when: build_result.failed
 
     - name: Etiquetar la imagen
-      command: >
-        podman tag mysql:casopractico2
-        dvrAcrRegistry.azurecr.io/mysql/casopractico2:casopractico2
+      ansible.builtin.command:
+        cmd: "podman tag mysql:casopractico2 dvrAcrRegistry.azurecr.io/mysql/casopractico2:casopractico2"
+      register: tag_result
+      failed_when: tag_result.failed
 
     - name: Subir la imagen al ACR
-      command: >
-        podman push dvrAcrRegistry.azurecr.io/mysql/casopractico2:casopractico2
+      ansible.builtin.command:
+        cmd: "podman push dvrAcrRegistry.azurecr.io/mysql/casopractico2:casopractico2"
+      register: push_result
+      failed_when: push_result.failed
+      no_log: true  # Para evitar mostrar detalles sensibles en los logs

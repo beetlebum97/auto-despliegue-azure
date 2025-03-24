@@ -6,4 +6,7 @@
       command: az aks get-credentials --resource-group DVR --name dvrAksCluster --overwrite-existing
 
     - name: Aplicar el manifiesto MySQL en el cluster
-      command: kubectl apply -f mysql-deploy.yaml
+      k8s:
+        kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+        state: present
+        src: mysql-deploy.yaml

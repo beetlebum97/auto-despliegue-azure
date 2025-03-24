@@ -2,41 +2,61 @@
   hosts: localhost
   vars_files:
     - /home/beetlebum/cp2/ansible/secrets.yml  # Carga las variables sensibles desde un archivo encriptado con Ansible Vault
+  collections:
+    - kubernetes.core
+    - community.mysql       # Requiere la colección community.mysql
   tasks:
     - name: Verificar los pods
-      command: kubectl get pods
-      register: pod_status
-      failed_when: "'Running' not in pod_status.stdout"
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: default  # Cambia al namespace correcto si es necesario
+      register: pod_info
 
     - name: Mostrar estado de los pods
       debug:
-        var: pod_status.stdout
+        msg: "Pods en ejecución: {{ pod_info.resources | json_query('[].metadata.name') }}"
 
     - name: Verificar los servicios
-      command: kubectl get services
-      register: service_status
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: default  # Cambia al namespace correcto si es necesario
+      register: service_info
 
     - name: Mostrar estado de los servicios
       debug:
-        var: service_status.stdout
+        msg: "Servicios: {{ service_info.resources | json_query('[].metadata.name') }}"
 
     - name: Obtener la IP externa del servicio MySQL
-      shell: |
-        kubectl get service mysql-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-      register: mysql_ip
-      ignore_errors: yes  # Ignora errores si el servicio no tiene IP aún
+      set_fact:
+        mysql_ip: >-
+          {{ service_info.resources | selectattr('metadata.name', 'eq', 'mysql-service') |
+          map(attribute='status.loadBalancer.ingress') | first | default([]) |
+          map(attribute='ip') | first | default('') }}
 
     - name: Mostrar la IP externa del servicio MySQL
       debug:
-        var: mysql_ip.stdout
+        msg: "La IP externa del servicio MySQL es: {{ mysql_ip if mysql_ip else 'No hay IP externa asignada' }}"
 
     - name: Probar conexión a MySQL (si hay IP externa)
-      shell: >
-        mysql -h {{ mysql_ip.stdout }} -P 3306 -u {{ mysql_user }} -p{{ mysql_password }} -e "SHOW DATABASES;"
-      when: mysql_ip.stdout != ""
+      community.mysql.mysql_query:
+        login_host: "{{ mysql_ip }}"
+        login_port: 3306
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        query: "SHOW DATABASES;"
+      when: mysql_ip != ""
       register: mysql_connection
       ignore_errors: yes  # Ignora errores si la conexión falla
 
-    - name: Mostrar resultado de la conexión a MySQL
+    - name: Mostrar salida completa de mysql_connection
       debug:
-        var: mysql_connection.stdout
+        var: mysql_connection
+
+#    - name: Mostrar bases de datos en MySQL
+#      debug:
+#        msg: >-
+#          {% if mysql_connection is succeeded and mysql_connection.query_result %}
+#            Bases de datos en MySQL: {{ mysql_connection.query_result | map(attribute='Database') | list }}
+#          {% else %}
+#            No se pudo conectar a MySQL o no hay bases de datos.
+#          {% endif %}
